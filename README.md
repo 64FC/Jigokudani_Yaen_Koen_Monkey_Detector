@@ -8,4 +8,6 @@ Around the middle of the webpage there should be two links:
   - 9am - 4pm Japan Standard Time Winter Season (November - March),
   - 8.30am - 5pm Japan Standard Time Summer Season (April - October).
 
-We'll use the former.
+We'll use the latter for now (to be updated).
+
+[Link to the app](https://jigokudaniyaenkoenmonkeydetector-jfyf2q7vfqtqwxka9sgk2k.streamlit.app/)!

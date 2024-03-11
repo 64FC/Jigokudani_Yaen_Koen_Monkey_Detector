@@ -1,5 +1,6 @@
 # Dependencies
 import streamlit as st
+import os
 from bs4 import BeautifulSoup
 import requests
 import google.generativeai as genai
@@ -9,7 +10,7 @@ from PIL import Image
 web_monkey = 'http://www.jigokudani-yaenkoen.co.jp'
 
 # Define the API KEY to access Gemini models
-genai.configure(api_key=GOOGLE_API_KEY)
+genai.configure(api_key=st.secrets['GOOGLE_API_KEY'])
 
 # Define the prompt to be used for Gemini Pro Vision
 prompt = """

@@ -167,11 +167,11 @@ def main():
         if yest_button:
             st.write('')
             if yest_button:
-                url_imgs, num_imgs = get_image(day=select_day,
-                                               time=dict_time[selected_time_yest])
+                url_imgs, num_imgs, _ = get_image(day=select_day,
+                                                          time=dict_time[selected_time_yest])
             else:
                 st.warning('No timeslot selected, showing for 9am.')
-                url_imgs, num_imgs = get_image(day=select_day)
+                url_imgs, num_imgs, _ = get_image(day=select_day)
             if num_imgs == 1:
                 st.success('Correctly fetched the image.')
             else:
@@ -181,14 +181,23 @@ def main():
                 response = model.generate_content(
                     [prompt, Image.open(requests.get(url_imgs[0], stream=True).raw)], stream=True)
                 response.resolve()
-            if response.text:
+            # If the model returns 'True' there are monkeys in the photo
+            if response.text.strip() == 'True':
                 st.balloons()
                 st.write('There were monkeys at the selected time!')
-            else:
+            # If  the model returns 'False' there are no monkeys in the photo
+            elif response.text.strip() == 'False':
                 st.write("""
                 Monkeys were not there at the selected time.\n
                 Maybe they returned to the mountain?\n
                 Please double-check with the photo:
+                """)
+            # Issue with the response from the model (did not return 'True'/'False'
+            else:
+                st.write("""
+                Issue with the model's answer. Please rerun it.\n
+                Sorry for the inconvenience.\n
+                Here's the photo for you to check:
                 """)
             st.write('')
             st.image(url_imgs[0])

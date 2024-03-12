@@ -25,8 +25,15 @@ dict_time = {'8am':'08', '9am':'09', '10am':'10', '11am':'11', '12pm':'12',
              '1pm':'13', '2pm':'14', '3pm':'15', '4pm':'16', '5pm':'17'}
 
 
-# Defaults to the current day 9am
-def get_image(day='day0', time='09'):
+def get_image(day, time):
+    """
+    This function retrieves the image(s) for the selected day and time.
+    :param day: 'day0' for today, 'day1' for yesterday
+    :param time: '08', '09', ..., '17'
+    :return: the url(s) to the image(s),
+             the number of image(s) retrieved (should be 1 ideally),
+             the presence of the correct title as a binary.
+    """
     # Start by completing the url
     url_ = '{}/livecam/monkey/{}/{}/main.htm'.format(web_monkey, day, time)
 
@@ -54,6 +61,10 @@ def get_image(day='day0', time='09'):
 
 @st.cache_resource
 def load_gemini_vision():
+    """
+    This function loads Gemini Pro Vision if available.
+    :return: the model, or None
+    """
     model = None
     # First, make sure Gemini Pro Vision is still available
     for m in genai.list_models():
@@ -84,15 +95,22 @@ def main():
     # Define columns to split the buttons
     col1, col2, col3 = st.columns(3)
     # On button click, change the value of the variable
+    # If model unavailable, disable the buttons for detection
     with col1:
-        if st.button('Homepage'):
+        if st.button('Homepage', type='primary'):
             st.session_state.body_button = 'Home'
     with col2:
-        if st.button('Detect for today'):
-            st.session_state.body_button = 'Today'
+        if model:
+            if st.button('Detect for today', type='primary'):
+                st.session_state.body_button = 'Today'
+        else:
+            st.button('Detect for today', disabled=True)
     with col3:
-        if st.button('Detect for yesterday'):
-            st.session_state.body_button = 'Yest'
+        if model:
+            if st.button('Detect for yesterday', type='primary'):
+                st.session_state.body_button = 'Yest'
+        else:
+            st.button('Detect for yesterday', disabled=True)
 
     # Show the correct body according to the button clicked
     st.write('')
@@ -112,7 +130,10 @@ def main():
     elif st.session_state.body_button == 'Today':
         select_day = 'day0'
         selected_time_today = st.selectbox('Select the timeslot:',
-                                           ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'])
+                                           ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'],
+                                           index=None,
+                                           placeholder='Please select...',
+                                           key='time_today')
         st.write('')
         today_button = st.button('Run the summary')
         if today_button:
@@ -130,7 +151,7 @@ def main():
                 else:
                     st.warning('Fetched more than one image, proceed with caution on the output!')
                 # Run the model against the provided image
-                with st.spinner("Analyzing the image..."):
+                with st.spinner("Analyzing the photo..."):
                     response = model.generate_content(
                         [prompt, Image.open(requests.get(url_imgs[0], stream=True).raw)], stream=True)
                     response.resolve()
@@ -161,14 +182,17 @@ def main():
     elif st.session_state.body_button == 'Yest':
         select_day = 'day1'
         selected_time_yest = st.selectbox('Select the timeslot:',
-                                          ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'])
+                                          ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'],
+                                          index=None,
+                                          placeholder='Please select...',
+                                          key='time_yesterday')
         st.write('')
         yest_button = st.button('Run the summary')
         if yest_button:
             st.write('')
-            if yest_button:
+            if selected_time_yest:
                 url_imgs, num_imgs, _ = get_image(day=select_day,
-                                                          time=dict_time[selected_time_yest])
+                                                  time=dict_time[selected_time_yest])
             else:
                 st.warning('No timeslot selected, showing for 9am.')
                 url_imgs, num_imgs, _ = get_image(day=select_day)
@@ -177,7 +201,7 @@ def main():
             else:
                 st.warning('Fetched more than one image, proceed with caution on the output!')
             # Run the model against the provided image
-            with st.spinner("Analyzing the image..."):
+            with st.spinner("Analyzing the photo..."):
                 response = model.generate_content(
                     [prompt, Image.open(requests.get(url_imgs[0], stream=True).raw)], stream=True)
                 response.resolve()

@@ -15,9 +15,9 @@ genai.configure(api_key=st.secrets['GOOGLE_API_KEY'])
 # Define the prompt to be used for Gemini Pro Vision
 prompt = """
 Analyze the provided image. The goal is to detect the presence of monkeys.
-You should only respond using a binary.
 If there are monkeys in the image, respond True.
 Otherwise, respond False.
+You should format your response as a binary.
 """
 
 # Dictionnary used to convert the selected timeslot
@@ -36,6 +36,11 @@ def get_image(day='day0', time='09'):
     # Scrap using BeautifulSoup
     soup = BeautifulSoup(htmldata, 'html.parser')
 
+    # Find the title
+    title_tags = soup.title.string
+    # If there is a photo, the title should be 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+    title_bin = title_tags == 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+
     # Find all the images
     img_tags = soup.find_all('img')
 
@@ -44,7 +49,7 @@ def get_image(day='day0', time='09'):
     url_imgs = [base_ + img['src'] for img in img_tags]
     num_imgs = len(url_imgs)
 
-    return url_imgs, num_imgs
+    return url_imgs, num_imgs, title_bin
 
 
 @st.cache_resource
@@ -113,31 +118,45 @@ def main():
         if today_button:
             st.write('')
             if selected_time_today:
-                url_imgs, num_imgs = get_image(day=select_day,
-                                               time=dict_time[selected_time_today])
+                url_imgs, num_imgs, title_bin = get_image(day=select_day,
+                                                          time=dict_time[selected_time_today])
             else:
                 st.warning('No timeslot selected, showing for 9am.')
-                url_imgs, num_imgs = get_image(day=select_day)
-            if num_imgs == 1:
-                st.success('Correctly fetched the image.')
+                url_imgs, num_imgs, title_bin = get_image(day=select_day)
+            # If there is a "live" photo:
+            if title_bin:
+                if num_imgs == 1:
+                    st.success('Correctly fetched the image.')
+                else:
+                    st.warning('Fetched more than one image, proceed with caution on the output!')
+                # Run the model against the provided image
+                with st.spinner("Analyzing the image..."):
+                    response = model.generate_content(
+                        [prompt, Image.open(requests.get(url_imgs[0], stream=True).raw)], stream=True)
+                    response.resolve()
+                # If the model returns 'True' there are monkeys in the photo
+                if response.text.strip() == 'True':
+                    st.balloons()
+                    st.write('There were monkeys at the selected time!')
+                # If  the model returns 'False' there are no monkeys in the photo
+                elif response.text.strip() == 'False':
+                    st.write("""
+                    Monkeys were not there at the selected time.\n
+                    Maybe they returned to the mountain?\n
+                    Please double-check with the photo:
+                    """)
+                # Issue with the response from the model (did not return 'True'/'False'
+                else:
+                    st.write("""
+                    Issue with the model's answer. Please rerun it.\n
+                    Sorry for the inconvenience.\n
+                    Here's the photo for you to check:
+                    """)
+                st.write('')
+                st.image(url_imgs[0])
+            # Else, if there is no "live" photo yet:
             else:
-                st.warning('Fetched more than one image, proceed with caution on the output!')
-            # Run the model against the provided image
-            with st.spinner("Analyzing the image..."):
-                response = model.generate_content(
-                    [prompt, Image.open(requests.get(url_imgs[0], stream=True).raw)], stream=True)
-                response.resolve()
-            if response.text:
-                st.balloons()
-                st.write('There were monkeys at the selected time!')
-            else:
-                st.write("""
-                Monkeys were not there at the selected time.\n
-                Maybe they returned to the mountain?\n
-                Please double-check with the photo:
-                """)
-            st.write('')
-            st.image(url_imgs[0])
+                st.warning('Please try again later, there is no photo available yet.')
     # Menu for Yesterday
     elif st.session_state.body_button == 'Yest':
         select_day = 'day1'

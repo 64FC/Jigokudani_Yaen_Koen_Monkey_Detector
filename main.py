@@ -25,12 +25,28 @@ dict_time = {'8am':'08', '9am':'09', '10am':'10', '11am':'11', '12pm':'12',
              '1pm':'13', '2pm':'14', '3pm':'15', '4pm':'16', '5pm':'17'}
 
 
+def is_cam_up():
+    """
+    This function checks if the camera is working or not,
+    by checking if there is content for the first photo of the day.
+    :return: bool
+    """
+    url_ = '{}/livecam/monkey/{}/{}/main.htm'.format(web_monkey, 'day0', '09')
+    if requests.get(url_).content == b'':
+        cam_up = False
+    else:
+        cam_up = True
+
+    return cam_up
+
+
 def get_image(day, time):
     """
     This function retrieves the image(s) for the selected day and time.
     :param day: 'day0' for today, 'day1' for yesterday
     :param time: '08', '09', ..., '17'
-    :return: the url(s) to the image(s),
+    :return: if the camera is available or not as a binary,
+             the url(s) to the image(s),
              the number of image(s) retrieved (should be 1 ideally),
              the presence of the correct title as a binary.
     """
@@ -45,6 +61,7 @@ def get_image(day, time):
 
     # Find the title
     title_tags = soup.title.string
+
     # If there is a photo, the title should be 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
     title_bin = title_tags == 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
 
@@ -79,13 +96,19 @@ def main():
     st.markdown('---')
     st.write('')
 
-    # Load model
-    with st.spinner(text="Gemini model loading..."):
-        model = load_gemini_vision()
-        if model:
-            st.info('Gemini Pro Vision successfully connected!')
-        else:
-            st.warning('Gemini Pro Vision unavailable, working on a fix...')
+    # Check if the camera is working:
+    cam_up = is_cam_up()
+    if cam_up:
+        # Load model
+        with st.spinner(text="Gemini model loading..."):
+            model = load_gemini_vision()
+            if model:
+                st.info('Gemini Pro Vision successfully connected!')
+            else:
+                st.warning('Gemini Pro Vision unavailable, working on a fix...')
+    else:
+        model = False
+        st.error('The camera is down at the moment, please try again later.')
 
     st.write('')
     # Initialize variable to display the correct body
@@ -100,13 +123,13 @@ def main():
         if st.button('Homepage', type='primary'):
             st.session_state.body_button = 'Home'
     with col2:
-        if model:
+        if cam_up and model:
             if st.button('Detect for today', type='primary'):
                 st.session_state.body_button = 'Today'
         else:
             st.button('Detect for today', disabled=True)
     with col3:
-        if model:
+        if cam_up and model:
             if st.button('Detect for yesterday', type='primary'):
                 st.session_state.body_button = 'Yest'
         else:
@@ -143,7 +166,7 @@ def main():
                                                           time=dict_time[selected_time_today])
             else:
                 st.warning('No timeslot selected, showing for 9am.')
-                url_imgs, num_imgs, title_bin = get_image(day=select_day)
+                url_imgs, num_imgs, title_bin = get_image(day=select_day, time='09')
             # If there is a "live" photo:
             if title_bin:
                 if num_imgs == 1:
@@ -195,7 +218,7 @@ def main():
                                                   time=dict_time[selected_time_yest])
             else:
                 st.warning('No timeslot selected, showing for 9am.')
-                url_imgs, num_imgs, _ = get_image(day=select_day)
+                url_imgs, num_imgs, _ = get_image(day=select_day, time='09')
             if num_imgs == 1:
                 st.success('Correctly fetched the image.')
             else:

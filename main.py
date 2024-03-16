@@ -42,12 +42,10 @@ def which_cam_up():
     """
     This function checks if the cameras are working or not,
     by checking if there is content for the first photo of the day.
-    :return: 'live' is livecam is up, 'live2' if the other one is up,
+    :return: 'live1' is livecam is up, 'live2' if the other one is up,
               None is neither is working.
     """
-    # TODO: remove and uncomment when fixed                              -- CURRENT --
-    url_live1 = '{}/livecam/monkey/main.htm'.format(web_monkey)
-    #url_live1 = '{}/livecam/monkey/index.htm'.format(web_monkey)
+    url_live1 = '{}/livecam/monkey/index.htm'.format(web_monkey)
     url_live2 = '{}/livecam2/video.php'.format(web_monkey)
     # Check if livecam feed is down
     if requests.get(url_live1).content == b'':
@@ -62,72 +60,77 @@ def which_cam_up():
     return which_cam
 
 
-def get_image_live1(day, time):
+def get_image(cam, day, time):
     """
     This function retrieves the image(s) for the selected day and time.
+    :param cam: result of which_cam_up()
     :param day: 'day0' for today, 'day1' for yesterday
     :param time: '08', '09', ..., '17'
     :return: the url(s) to the image(s),
              the number of image(s) retrieved (should be 1 ideally).
     """
-    # Start by completing the url
-    # TODO: remove and uncomment when fixed                              -- CURRENT --
-    url_ = '{}/livecam/monkey/main.htm'.format(web_monkey)
-    #url_ = '{}/livecam/monkey/{}/{}/main.htm'.format(web_monkey, day, time)
+    if cam == 'live1':
+        # Complete the url
+        url_ = '{}/livecam/monkey/{}/{}/main.htm'.format(web_monkey, day, time)
 
-    # Extract contents from the url, as a text
-    htmldata = requests.get(url_).text
+        # Extract contents from the url, as a text
+        htmldata = requests.get(url_).text
 
-    # Scrap using BeautifulSoup
-    soup = BeautifulSoup(htmldata, 'html.parser')
+        # Scrap using BeautifulSoup
+        soup = BeautifulSoup(htmldata, 'html.parser')
 
-    # Find the title
-    title_tags = soup.title.string
+        # Find the title
+        title_tags = soup.title.string
 
-    # If there is a photo, the title should be 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
-    title_bin = title_tags == 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+        # If there is a photo, the title should be 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+        title_bin = title_tags == 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
 
-    # Find all the images
-    img_tags = soup.find_all('img')
+        # Find all the images
+        img_tags = soup.find_all('img')
 
-    # Get the url
-    #base_ = '{}/livecam/monkey/{}/{}/'.format(web_monkey, day, time)
-    base_ = '{}/livecam/monkey/'.format(web_monkey)
-    url_imgs = [base_ + img['src'] for img in img_tags]
-    num_imgs = len(url_imgs)
+        # Get the url
+        base_ = '{}/livecam/monkey/{}/{}/'.format(web_monkey, day, time)
+        url_imgs = [base_ + img['src'] for img in img_tags]
+        num_imgs = len(url_imgs)
+
+    # TODO: complete below
+    #elif cam == 'live2':
+        #url_ = '{}/livecam2/video.php'.format(web_monkey)
+
+        # Extract contents from the url, as a text
+        #htmldata = requests.get(url_).text
+
+        # Scrap using BeautifulSoup
+        #soup = BeautifulSoup(htmldata, 'html.parser')
+
+        # Find all the links
+        #content = soup.find_all('link')
+
+    else:
+        # Complete the url
+        url_ = '{}/livecam/monkey/main.htm'.format(web_monkey)
+
+        # Extract contents from the url, as a text
+        htmldata = requests.get(url_).text
+
+        # Scrap using BeautifulSoup
+        soup = BeautifulSoup(htmldata, 'html.parser')
+
+        # Find the title
+        title_tags = soup.title.string
+
+        # If there is a photo, the title should be 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+        title_bin = title_tags == 'JIGOKUDANI-YAENKOEN SVGA-LIVECAM'
+
+        # Find all the images
+        img_tags = soup.find_all('img')
+
+        # Get the url
+        base_ = '{}/livecam/monkey/'.format(web_monkey)
+        url_imgs = [base_ + img['src'] for img in img_tags]
+        num_imgs = len(url_imgs)
 
     return url_imgs, num_imgs, title_bin
-
-
-# TODO: find a way to complete function
-def get_image_live2():
-    """
-    This function retrieves the gif for the livecam2.
-    :return: the url(s) to the gif,
-             the presence of the correct title as a binary.
-    """
-    # Start by completing the url
-    url_ = '{}/livecam2/video.php'.format(web_monkey)
-
-    # Extract contents from the url, as a text
-    htmldata = requests.get(url_).text
-
-    # Scrap using BeautifulSoup
-    soup = BeautifulSoup(htmldata, 'html.parser')
-
-    # Find all the links
-    content = soup.find_all('link')
-
-    # Find all the images
-    #img_tags = soup.find_all('img')
-
-    # Get the url
-    #base_ = '{}/livecam/monkey/{}/{}/'.format(web_monkey, day, time)
-    #url_imgs = [base_ + img['src'] for img in img_tags]
-    #num_imgs = len(url_imgs)
-
-    #return url_imgs
-    return content
 
 
 @st.cache_resource
@@ -170,8 +173,6 @@ def average_on_responses(list_):
 
 def main():
     st.title("Welcome to a Jigokudani Yaen-Koen monkey detector!")
-    st.warning("There is currently an issue with the page indexing the photos for the \
-               current day and the day before. Timeslot selection are disabled.")
     st.markdown('---')
     st.write('')
 
@@ -209,7 +210,6 @@ def main():
 
     # Define columns to split the buttons
     col1, col2, col3 = st.columns(3)
-    # On button click, change the value of the variable
     # If model unavailable, disable the buttons for detection
     with col1:
         if st.button('Homepage', type='primary'):
@@ -246,35 +246,35 @@ def main():
         # If livecam1 up:
         if cam == 'live1':
             select_day = 'day0'
-            # TODO: enable back when issue fixed by website (index.htm)
             # Check if Winter
-            #if curr_month() in [1, 2, 3, 11, 12]:
-                #selected_time_today = st.selectbox('Select the timeslot:',
-                                                   #['9am', '10am', '11am', '12pm',
-                                                    #'1pm', '2pm', '3pm', '4pm'],
-                                                   #index=None,
-                                                   #placeholder='Please select...',
-                                                   #key='time_today')
+            if curr_month() in [1, 2, 3, 11, 12]:
+                selected_time_today = st.selectbox('Select the timeslot:',
+                                                   ['9am', '10am', '11am', '12pm',
+                                                    '1pm', '2pm', '3pm', '4pm'],
+                                                   index=None,
+                                                   placeholder='Please select...',
+                                                   key='time_today')
             # Else, Summer
-            #else:
-                #selected_time_today = st.selectbox('Select the timeslot:',
-                                                   #['8am', '9am', '10am', '11am', '12pm',
-                                                    #'1pm', '2pm', '3pm', '4pm', '5pm'],
-                                                   #index=None,
-                                                   #placeholder='Please select...',
-                                                   #key='time_today')
+            else:
+                selected_time_today = st.selectbox('Select the timeslot:',
+                                                   ['8am', '9am', '10am', '11am', '12pm',
+                                                    '1pm', '2pm', '3pm', '4pm', '5pm'],
+                                                   index=None,
+                                                   placeholder='Please select...',
+                                                   key='time_today')
             st.write('')
             today_button = st.button('Run the summary')
             if today_button:
                 st.write('')
-                # TODO: enable back when issue fixed by website (index.htm)
-                #if selected_time_today:
-                    #url_imgs, num_imgs, title_bin = get_image_live1(day=select_day,
-                                                                    #time=dict_time[selected_time_today])
-                #else:
-                    #st.warning('No timeslot selected, showing for 9am.')
-                    #url_imgs, num_imgs, title_bin = get_image_live1(day=select_day, time='09')
-                url_imgs, num_imgs, title_bin = get_image_live1(day=select_day, time='09')
+                if selected_time_today:
+                    url_imgs, num_imgs, title_bin = get_image(cam=cam,
+                                                              day=select_day,
+                                                              time=dict_time[selected_time_today])
+                else:
+                    st.warning('No timeslot selected, showing for 9am.')
+                    url_imgs, num_imgs, title_bin = get_image(cam=cam,
+                                                              day=select_day,
+                                                              time='09')
                 # If there is a "live" photo:
                 if title_bin:
                     if num_imgs == 1:
@@ -328,35 +328,35 @@ def main():
         # If livecam1 up:
         if cam == 'live1':
             select_day = 'day1'
-            # TODO: enable back when issue fixed by website (index.htm)
             # Check if Winter
-            #if curr_month() in [1, 2, 3, 11, 12]:
-                #selected_time_yest = st.selectbox('Select the timeslot:',
-                                                  #['9am', '10am', '11am', '12pm',
-                                                   #'1pm', '2pm', '3pm', '4pm'],
-                                                  #index=None,
-                                                  #placeholder='Please select...',
-                                                  #key='time_yest')
+            if curr_month() in [1, 2, 3, 11, 12]:
+                selected_time_yest = st.selectbox('Select the timeslot:',
+                                                  ['9am', '10am', '11am', '12pm',
+                                                   '1pm', '2pm', '3pm', '4pm'],
+                                                  index=None,
+                                                  placeholder='Please select...',
+                                                  key='time_yest')
             # Else, Summer
-            #else:
-                #selected_time_yest = st.selectbox('Select the timeslot:',
-                                                  #['8am', '9am', '10am', '11am', '12pm',
-                                                   #'1pm', '2pm', '3pm', '4pm', '5pm'],
-                                                  #index=None,
-                                                  #placeholder='Please select...',
-                                                  #key='time_yest')
+            else:
+                selected_time_yest = st.selectbox('Select the timeslot:',
+                                                  ['8am', '9am', '10am', '11am', '12pm',
+                                                   '1pm', '2pm', '3pm', '4pm', '5pm'],
+                                                  index=None,
+                                                  placeholder='Please select...',
+                                                  key='time_yest')
             st.write('')
             yest_button = st.button('Run the summary')
             if yest_button:
                 st.write('')
-                # TODO: enable back when issue fixed by website (index.htm)
-                #if selected_time_yest:
-                    #url_imgs, num_imgs, _ = get_image_live1(day=select_day,
-                                                            #time=dict_time[selected_time_yest])
-                #else:
-                    #st.warning('No timeslot selected, showing for 9am.')
-                    #url_imgs, num_imgs, _ = get_image_live1(day=select_day, time='09')
-                url_imgs, num_imgs, _ = get_image_live1(day=select_day, time='09')
+                if selected_time_yest:
+                    url_imgs, num_imgs, _ = get_image(cam=cam,
+                                                      day=select_day,
+                                                      time=dict_time[selected_time_yest])
+                else:
+                    st.warning('No timeslot selected, showing for 9am.')
+                    url_imgs, num_imgs, _ = get_image(cam=cam,
+                                                      day=select_day,
+                                                      time='09')
                 if num_imgs == 1:
                     st.success('Correctly fetched the image.')
                 else:
